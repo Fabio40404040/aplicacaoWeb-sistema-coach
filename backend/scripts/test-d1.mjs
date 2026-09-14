@@ -103,6 +103,7 @@ await withDb({ DB: binding }, async (db) => {
   const env = {
     PUBLIC_SITE_URL: 'https://example.invalid',
     EMAIL_FROM: 'noreply@example.invalid',
+    RECOVERY_TEST_EMAILS: ' ACCOUNT@example.invalid , failure@example.invalid ',
     EMAIL: {
       async send(message) {
         sent = message
@@ -147,6 +148,22 @@ await withDb({ DB: binding }, async (db) => {
     (await studentRecovery(req({ token, password: 'Nova@Senha2026' }), env, db, 'reset')).status,
     400,
   )
+  await db.query('INSERT INTO student_accounts (name,email,password_hash) VALUES ($1,$2,$3)', [
+    'Fora do teste',
+    'outside@example.invalid',
+    'hash',
+  ])
+  const outside = await studentRecovery(
+    req({ email: 'outside@example.invalid' }),
+    env,
+    db,
+    'forgot',
+    async () => {
+      throw new Error('Não deve enviar para endereço fora do teste')
+    },
+  )
+  assert.match(outside.data.message, /habilitada para teste/u)
+  assert.equal((await db.query('SELECT * FROM student_password_resets')).rows.length, 0)
   await db.query('INSERT INTO student_accounts (name,email,password_hash) VALUES ($1,$2,$3)', [
     'Falha',
     'failure@example.invalid',
