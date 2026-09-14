@@ -6,7 +6,8 @@
   "scripts": {
     "format": "prettier --write \"index.html\" \"src/**/*.{html,css,js}\" \"backend/src/**/*.js\" \"backend/scripts/*.mjs\" \"*.{js,json}\" \"backend/*.{json,jsonc}\"",
     "format:check": "prettier --check \"index.html\" \"src/**/*.{html,css,js}\" \"backend/src/**/*.js\" \"backend/scripts/*.mjs\" \"*.{js,json}\" \"backend/*.{json,jsonc}\"",
-    "dev": "vite --open",
+    "dev": "node scripts/dev.mjs",
+    "dev:frontend": "vite --open",
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview"

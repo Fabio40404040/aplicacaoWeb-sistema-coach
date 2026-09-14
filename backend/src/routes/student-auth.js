@@ -31,7 +31,7 @@ export async function studentAuth(request, env, db, action) {
     account = result.rows[0]
     if (!account)
       return {
-        error: 'Não foi possível cadastrar este e-mail. Tente entrar na sua conta.',
+        error: 'Este e-mail já está cadastrado. Entre na sua conta ou recupere sua senha.',
         status: 409,
       }
   } else {

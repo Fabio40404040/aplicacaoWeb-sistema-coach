@@ -52,6 +52,7 @@ export function initStudentAccess() {
       const status = form.querySelector('[role="status"]')
       const button = form.querySelector('[type="submit"]')
       button.disabled = true
+      delete status.dataset.state
       status.textContent = 'Aguarde…'
       try {
         const data = Object.fromEntries(new FormData(form))
@@ -74,6 +75,7 @@ export function initStudentAccess() {
         status.textContent = ''
         location.hash = '#painel-aluno'
       } catch (error) {
+        status.dataset.state = 'error'
         status.textContent = error.message
       } finally {
         button.disabled = false

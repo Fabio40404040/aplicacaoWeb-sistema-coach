@@ -92,6 +92,13 @@
 .student-access-card [role='status']:empty {
   display: none;
 }
+.student-access-card [role='status'][data-state='error'] {
+  padding: 12px 14px;
+  border-left: 3px solid #ff7d86;
+  border-radius: 8px;
+  background: rgba(255, 125, 134, 0.12);
+  color: #ffe0e3;
+}
 .student-access-card--panel {
   width: min(100%, 900px);
 }

@@ -4,11 +4,11 @@ O backend usa Cloudflare D1 (SQLite), sem PostgreSQL ou Hyperdrive. HTML, CSS e 
 
 ## Testar localmente
 
-1. Na pasta backend, execute npm install.
-2. No primeiro npm run dev, uma chave de sessão aleatória local será criada automaticamente em .dev.vars, sem substituir uma configuração existente.
-3. Execute npm run db:migrate:local.
-4. Execute npm run dev. O Worker escuta na porta 8787.
-5. Na raiz do projeto, execute npm run dev. O Vite encaminha /api para o Worker local.
+1. Instale as dependências na raiz e em `backend` com `npm install` e `npm install --prefix backend`.
+2. Na raiz do projeto, execute `npm run dev`. O comando aplica as migrações locais e inicia o Worker na porta 8787 e o Vite na porta 5173.
+3. No primeiro início do Worker, uma chave de sessão aleatória local será criada automaticamente em `.dev.vars`, sem substituir uma configuração existente.
+
+Para iniciar somente a interface, use `npm run dev:frontend`. O Vite encaminha `/api` para o Worker local, que precisa estar em execução para cadastro e login.
 
 O banco local é persistido pelo Wrangler em .wrangler/state. Não é o banco de produção.
 

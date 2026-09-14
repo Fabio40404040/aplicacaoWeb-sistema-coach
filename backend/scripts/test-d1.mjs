@@ -5,6 +5,7 @@ import { withDb } from '../src/lib/db.js'
 import { createResource, updateResource, deleteResource } from '../src/routes/resources.js'
 import { dashboard } from '../src/routes/dashboard.js'
 import { sendPasswordReset } from '../src/lib/password-mailer.js'
+import { studentAuth } from '../src/routes/student-auth.js'
 import { studentRecovery } from '../src/routes/student-recovery.js'
 
 // SQLite contract check; the live Wrangler registration test covers D1 itself.
@@ -126,6 +127,15 @@ await withDb({ DB: binding }, async (db) => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
     })
+  const duplicate = await studentAuth(
+    req({ name: 'Outra Conta', email: ' ACCOUNT@example.invalid ', password: 'Senha@123' }),
+    env,
+    db,
+    'register',
+  )
+  assert.equal(duplicate.status, 409)
+  assert.match(duplicate.error, /e-mail já está cadastrado/u)
+  assert.equal((await db.query('SELECT * FROM student_accounts')).rows.length, 1)
   await studentRecovery(
     req({ email: 'account@example.invalid' }),
     env,
@@ -182,4 +192,6 @@ await withDb({ DB: binding }, async (db) => {
   assert.equal((await db.query('SELECT * FROM student_password_resets')).rows.length, 0)
 })
 sqlite.close()
-console.log('D1 SQL: migrations, CRUD, ownership, dashboard and password reset batch passed.')
+console.log(
+  'D1 SQL: migrations, CRUD, ownership, duplicate registration and password reset passed.',
+)

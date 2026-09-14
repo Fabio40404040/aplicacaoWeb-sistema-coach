@@ -6,10 +6,11 @@ Painel administrativo responsivo para personal trainers, com login, gestão de a
 
 ```bash
 npm install
+npm install --prefix backend
 npm run dev
 ```
 
-O painel demonstrativo do coach guarda alterações no dispositivo. O cadastro e login do aluno usam Cloudflare Workers + D1: dentro de `backend`, execute `npm run db:migrate:local` e `npm run dev`. O Vite encaminha `/api` para esse serviço na porta 8787. Para uma API publicada em outro domínio, informe sua URL em `VITE_API_URL` antes de compilar.
+O comando `npm run dev` prepara o banco local e inicia o site e a API de contas juntos. O cadastro e login do aluno usam Cloudflare Workers + D1; o Vite encaminha `/api` para a API na porta 8787. Para iniciar somente o site, use `npm run dev:frontend`. Para uma API publicada em outro domínio, informe sua URL em `VITE_API_URL` antes de compilar. A recuperação por e-mail é enviada pelo próprio Cloudflare Worker; veja [`backend/README.md`](backend/README.md) para ativá-la.
 
 ## Estrutura
 
