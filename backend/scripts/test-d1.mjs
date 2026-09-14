@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs'
 import { withDb } from '../src/lib/db.js'
 import { createResource, updateResource, deleteResource } from '../src/routes/resources.js'
 import { dashboard } from '../src/routes/dashboard.js'
+import { sendPasswordReset } from '../src/lib/password-mailer.js'
 import { studentRecovery } from '../src/routes/student-recovery.js'
 
 // SQLite contract check; the live Wrangler registration test covers D1 itself.
@@ -99,25 +100,39 @@ await withDb({ DB: binding }, async (db) => {
       ['Conta', 'account@example.invalid', 'hash'],
     )
   ).rows[0]
-  let mail
   const env = {
     PUBLIC_SITE_URL: 'https://example.invalid',
-    PASSWORD_MAILER: {
-      fetch: async (_url, options) => {
-        mail = JSON.parse(options.body)
-        return new Response(null, { status: 202 })
-      },
-    },
+    PASSWORD_MAILER_URL: 'https://mailer.example.invalid/password-reset',
+    PASSWORD_MAILER_TOKEN: 'test-token',
   }
+  let mail
+  await sendPasswordReset(
+    env,
+    { to: 'test@example.invalid', link: 'https://example.invalid' },
+    async (url, options) => {
+      assert.equal(url, env.PASSWORD_MAILER_URL)
+      assert.equal(options.headers.Authorization, 'Bearer test-token')
+      assert.equal(JSON.parse(options.body).to, 'test@example.invalid')
+      return new Response(null, { status: 202 })
+    },
+  )
   const req = (body) =>
     new Request('https://example.invalid', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
     })
-  await studentRecovery(req({ email: 'account@example.invalid' }), env, db, 'forgot')
+  await studentRecovery(
+    req({ email: 'account@example.invalid' }),
+    env,
+    db,
+    'forgot',
+    async (_env, message) => {
+      mail = message
+    },
+  )
   assert.ok(mail)
-  const token = mail.text.match(/token=([a-f0-9]{64})/u)[1]
+  const token = mail.link.match(/token=([a-f0-9]{64})/u)[1]
   const reset = await studentRecovery(req({ token, password: 'Nova@Senha2026' }), env, db, 'reset')
   assert.match(reset.data.message, /Senha alterada/u)
   assert.equal(
@@ -129,6 +144,21 @@ await withDb({ DB: binding }, async (db) => {
     (await studentRecovery(req({ token, password: 'Nova@Senha2026' }), env, db, 'reset')).status,
     400,
   )
+  await db.query('INSERT INTO student_accounts (name,email,password_hash) VALUES ($1,$2,$3)', [
+    'Falha',
+    'failure@example.invalid',
+    'hash',
+  ])
+  const failedDelivery = await studentRecovery(
+    req({ email: 'failure@example.invalid' }),
+    env,
+    db,
+    'forgot',
+    async () => {
+      throw new Error('Mailer unavailable')
+    },
+  )
+  assert.equal(failedDelivery.status, 503)
   assert.equal((await db.query('SELECT * FROM student_password_resets')).rows.length, 0)
 })
 sqlite.close()

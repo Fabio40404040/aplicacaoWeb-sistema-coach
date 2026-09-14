@@ -1,1 +1,4 @@
 SESSION_SECRET=troque-por-uma-chave-longa-e-aleatoria
+PUBLIC_SITE_URL=http://localhost:5173/
+PASSWORD_MAILER_URL=https://seu-servico.onrender.com/password-reset
+PASSWORD_MAILER_TOKEN=use-a-mesma-chave-aleatoria-de-32-caracteres-ou-mais-do-render

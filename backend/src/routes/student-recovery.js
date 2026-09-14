@@ -1,4 +1,5 @@
 import { readJson } from '../lib/http.js'
+import { sendPasswordReset } from '../lib/password-mailer.js'
 import { hashPassword, isStrongPassword } from '../lib/session.js'
 
 const generic = {
@@ -11,7 +12,7 @@ const hex = (bytes) => Array.from(bytes, (n) => n.toString(16).padStart(2, '0'))
 const digest = async (text) =>
   hex(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text))))
 
-export async function studentRecovery(request, env, db, action) {
+export async function studentRecovery(request, env, db, action, deliver = sendPasswordReset) {
   const body = await readJson(request)
   if (action === 'reset') {
     const { token, password } = body || {}
@@ -42,7 +43,7 @@ export async function studentRecovery(request, env, db, action) {
     !/^[^\s@]+@[^\s@]+\.[^\s@]+$/u.test(email.trim())
   )
     return { error: 'Informe um e-mail válido.', status: 400 }
-  if (!env.PASSWORD_MAILER || !env.PUBLIC_SITE_URL)
+  if (!env.PASSWORD_MAILER_URL || !env.PASSWORD_MAILER_TOKEN || !env.PUBLIC_SITE_URL)
     return {
       error:
         'A recuperação por e-mail ainda não está disponível. Entre em contato com o treinador.',
@@ -67,16 +68,7 @@ export async function studentRecovery(request, env, db, action) {
   const link = new URL(env.PUBLIC_SITE_URL)
   link.hash = `nova-senha?token=${token}`
   try {
-    const delivery = await env.PASSWORD_MAILER.fetch('https://mailer.internal/password-reset', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        to: account.email,
-        subject: 'Redefina sua senha · FRS Coach',
-        text: `Acesse ${link.href} para redefinir sua senha. O link vale por 30 minutos. Se você não solicitou, ignore esta mensagem.`,
-      }),
-    })
-    if (!delivery.ok) throw new Error('Delivery failed')
+    await deliver(env, { to: account.email, link: link.href })
   } catch {
     await db.query(
       'DELETE FROM student_password_resets WHERE account_id = $1 AND token_hash = $2',
