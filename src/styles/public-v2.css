@@ -394,6 +394,22 @@
   background: linear-gradient(var(--site-blue-light), transparent);
 }
 
+@media (min-width: 901px) {
+  .public-hero {
+    min-height: clamp(1030px, 94vw, 1100px);
+    padding-top: clamp(430px, 45vw, 520px);
+    padding-bottom: 80px;
+  }
+
+  .public-hero-copy {
+    align-self: end;
+  }
+
+  .hero-proof-grid {
+    bottom: 64px;
+  }
+}
+
 .public-section {
   width: min(1200px, calc(100% - 48px));
   margin-inline: auto;
