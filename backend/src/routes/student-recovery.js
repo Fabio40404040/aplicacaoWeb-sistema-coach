@@ -43,7 +43,7 @@ export async function studentRecovery(request, env, db, action, deliver = sendPa
     !/^[^\s@]+@[^\s@]+\.[^\s@]+$/u.test(email.trim())
   )
     return { error: 'Informe um e-mail válido.', status: 400 }
-  if (!env.PASSWORD_MAILER_URL || !env.PASSWORD_MAILER_TOKEN || !env.PUBLIC_SITE_URL)
+  if (!env.EMAIL?.send || !env.EMAIL_FROM || !env.PUBLIC_SITE_URL)
     return {
       error:
         'A recuperação por e-mail ainda não está disponível. Entre em contato com o treinador.',

@@ -102,20 +102,23 @@ await withDb({ DB: binding }, async (db) => {
   ).rows[0]
   const env = {
     PUBLIC_SITE_URL: 'https://example.invalid',
-    PASSWORD_MAILER_URL: 'https://mailer.example.invalid/password-reset',
-    PASSWORD_MAILER_TOKEN: 'test-token',
+    EMAIL_FROM: 'noreply@example.invalid',
+    EMAIL: {
+      async send(message) {
+        sent = message
+        return { messageId: 'test-message' }
+      },
+    },
   }
   let mail
-  await sendPasswordReset(
-    env,
-    { to: 'test@example.invalid', link: 'https://example.invalid' },
-    async (url, options) => {
-      assert.equal(url, env.PASSWORD_MAILER_URL)
-      assert.equal(options.headers.Authorization, 'Bearer test-token')
-      assert.equal(JSON.parse(options.body).to, 'test@example.invalid')
-      return new Response(null, { status: 202 })
-    },
-  )
+  let sent
+  await sendPasswordReset(env, {
+    to: 'test@example.invalid',
+    link: 'https://example.invalid/#nova-senha?token=test',
+  })
+  assert.equal(sent.to, 'test@example.invalid')
+  assert.deepEqual(sent.from, { email: env.EMAIL_FROM, name: 'FRS Coach' })
+  assert.match(sent.text, /nova-senha\?token=test/u)
   const req = (body) =>
     new Request('https://example.invalid', {
       method: 'POST',

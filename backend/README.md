@@ -38,7 +38,13 @@ O registro do aluno é separado da conta do personal. Tokens de aluno não acess
 
 ## Recuperação de senha
 
-Configure PUBLIC_SITE_URL com a URL pública do frontend e o service binding PASSWORD_MAILER. Esse serviço deve receber POST /password-reset com JSON { to, subject, text }, enviar a mensagem e retornar 2xx quando aceita. O serviço de envio não está incluído nem configurado.
+O Cloudflare Worker guarda somente o hash do token de recuperação no D1 e envia o link diretamente pelo binding `EMAIL` do Cloudflare Email Service. Render e Resend não são necessários.
+
+1. Na Cloudflare, acesse **Compute > Email Service > Email Sending**, selecione **Onboard Domain** e escolha um domínio que esteja no DNS da sua conta. Aguarde a configuração dos registros SPF e DKIM. O endereço usado em `EMAIL_FROM`, por exemplo `noreply@seu-dominio.com`, deve pertencer ao domínio ativado.
+2. No Worker, configure `PUBLIC_SITE_URL` com a URL HTTPS pública do frontend e `EMAIL_FROM` com o remetente acima. O binding `EMAIL` já está declarado em `wrangler.jsonc`. Para desenvolvimento local, adicione essas duas variáveis em `.dev.vars`; o envio local é simulado e registrado no console, sem mandar mensagem real.
+3. Confira o `database_id` do D1 em `wrangler.jsonc`, aplique a migração remota com `npm run db:migrate:remote` e publique o Worker com `npm run deploy`. Publique também o frontend com o formulário de recuperação. Teste com uma conta de aluno cadastrada.
+
+O envio para qualquer endereço de aluno exige **Workers Paid** com **Email Sending** ativo. No plano gratuito, a Cloudflare permite enviar apenas para endereços de destino verificados na conta; isso serve para testes, mas não para a recuperação de todos os alunos. Consulte a [visão geral do Email Service](https://developers.cloudflare.com/email-service/), o [guia de ativação do domínio](https://developers.cloudflare.com/email-service/get-started/send-emails/) e a [simulação local](https://developers.cloudflare.com/email-service/local-development/sending/).
 
 Os tokens expiram em 30 minutos, são armazenados somente como hash e consumidos em um batch transacional D1. A troca de senha invalida sessões anteriores do aluno. Configure limitação de requisições na Cloudflare antes de disponibilizar os endpoints publicamente.
 
