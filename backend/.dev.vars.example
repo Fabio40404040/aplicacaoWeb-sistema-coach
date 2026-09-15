@@ -1,4 +1,4 @@
 SESSION_SECRET=troque-por-uma-chave-longa-e-aleatoria
 PUBLIC_SITE_URL=http://localhost:5173/
-EMAIL_FROM=noreply@seu-dominio.com
-RECOVERY_TEST_EMAILS=aluno-teste@exemplo.com
+EMAIL_FROM=seu-email-verificado@gmail.com
+BREVO_API_KEY=xkeysib-sua-chave-de-envio

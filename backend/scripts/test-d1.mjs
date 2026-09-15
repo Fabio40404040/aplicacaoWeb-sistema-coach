@@ -104,23 +104,26 @@ await withDb({ DB: binding }, async (db) => {
   const env = {
     PUBLIC_SITE_URL: 'https://example.invalid',
     EMAIL_FROM: 'noreply@example.invalid',
-    RECOVERY_TEST_EMAILS: ' ACCOUNT@example.invalid , failure@example.invalid ',
-    EMAIL: {
-      async send(message) {
-        sent = message
-        return { messageId: 'test-message' }
-      },
-    },
+    BREVO_API_KEY: 'xkeysib-test-only',
   }
   let mail
   let sent
-  await sendPasswordReset(env, {
-    to: 'test@example.invalid',
-    link: 'https://example.invalid/#nova-senha?token=test',
-  })
-  assert.equal(sent.to, 'test@example.invalid')
-  assert.deepEqual(sent.from, { email: env.EMAIL_FROM, name: 'FRS Coach' })
-  assert.match(sent.text, /nova-senha\?token=test/u)
+  await sendPasswordReset(
+    env,
+    {
+      to: 'test@example.invalid',
+      link: 'https://example.invalid/#nova-senha?token=test',
+    },
+    async (url, options) => {
+      sent = { url, options, body: JSON.parse(options.body) }
+      return { ok: true, status: 200 }
+    },
+  )
+  assert.equal(sent.url, 'https://api.brevo.com/v3/smtp/email')
+  assert.equal(sent.options.headers['api-key'], env.BREVO_API_KEY)
+  assert.deepEqual(sent.body.to, [{ email: 'test@example.invalid' }])
+  assert.deepEqual(sent.body.sender, { name: 'FRS Coach', email: env.EMAIL_FROM })
+  assert.match(sent.body.textContent, /nova-senha\?token=test/u)
   const req = (body) =>
     new Request('https://example.invalid', {
       method: 'POST',
@@ -163,17 +166,29 @@ await withDb({ DB: binding }, async (db) => {
     'outside@example.invalid',
     'hash',
   ])
+  let outsideMail
   const outside = await studentRecovery(
     req({ email: 'outside@example.invalid' }),
     env,
     db,
     'forgot',
-    async () => {
-      throw new Error('Não deve enviar para endereço fora do teste')
+    async (_env, message) => {
+      outsideMail = message
     },
   )
-  assert.match(outside.data.message, /habilitada para teste/u)
-  assert.equal((await db.query('SELECT * FROM student_password_resets')).rows.length, 0)
+  assert.match(outside.data.message, /Se houver uma conta/u)
+  assert.equal(outsideMail.to, 'outside@example.invalid')
+  assert.equal((await db.query('SELECT * FROM student_password_resets')).rows.length, 1)
+  const unknown = await studentRecovery(
+    req({ email: 'unknown@example.invalid' }),
+    env,
+    db,
+    'forgot',
+    async () => {
+      throw new Error('Não deve enviar para conta inexistente')
+    },
+  )
+  assert.equal(unknown.data.message, outside.data.message)
   await db.query('INSERT INTO student_accounts (name,email,password_hash) VALUES ($1,$2,$3)', [
     'Falha',
     'failure@example.invalid',
@@ -189,7 +204,7 @@ await withDb({ DB: binding }, async (db) => {
     },
   )
   assert.equal(failedDelivery.status, 503)
-  assert.equal((await db.query('SELECT * FROM student_password_resets')).rows.length, 0)
+  assert.equal((await db.query('SELECT * FROM student_password_resets')).rows.length, 1)
 })
 sqlite.close()
 console.log(

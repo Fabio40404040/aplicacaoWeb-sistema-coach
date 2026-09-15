@@ -5,7 +5,7 @@ import { hashPassword, isStrongPassword } from '../lib/session.js'
 const generic = {
   data: {
     message:
-      'Se houver uma conta habilitada para teste com esse e-mail, você receberá um link de recuperação. Confira também o spam.',
+      'Se houver uma conta com esse e-mail, você receberá um link de recuperação. Confira também o spam.',
   },
 }
 const hex = (bytes) => Array.from(bytes, (n) => n.toString(16).padStart(2, '0')).join('')
@@ -43,13 +43,7 @@ export async function studentRecovery(request, env, db, action, deliver = sendPa
     !/^[^\s@]+@[^\s@]+\.[^\s@]+$/u.test(email.trim())
   )
     return { error: 'Informe um e-mail válido.', status: 400 }
-  const testEmails = new Set(
-    (env.RECOVERY_TEST_EMAILS || '')
-      .split(',')
-      .map((address) => address.trim().toLowerCase())
-      .filter(Boolean),
-  )
-  if (!env.EMAIL?.send || !env.EMAIL_FROM || !env.PUBLIC_SITE_URL || !testEmails.size)
+  if (!env.BREVO_API_KEY || !env.EMAIL_FROM || !env.PUBLIC_SITE_URL)
     return {
       error:
         'A recuperação por e-mail ainda não está disponível. Entre em contato com o treinador.',
@@ -60,7 +54,7 @@ export async function studentRecovery(request, env, db, action, deliver = sendPa
     [email.trim()],
   )
   const account = result.rows[0]
-  if (!account || !testEmails.has(account.email.trim().toLowerCase())) return generic
+  if (!account) return generic
   const token = hex(crypto.getRandomValues(new Uint8Array(32)))
   const tokenHash = await digest(token)
   const inserted = await db.query(

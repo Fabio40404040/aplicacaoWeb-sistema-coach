@@ -38,14 +38,19 @@ O registro do aluno é separado da conta do personal. Tokens de aluno não acess
 
 ## Recuperação de senha
 
-O Cloudflare Worker guarda somente o hash do token de recuperação no D1 e envia o link diretamente pelo binding `EMAIL` do Cloudflare Email Service. Render e Resend não são necessários. Esta versão opera **somente para endereços de teste autorizados**.
+O Cloudflare Worker guarda somente o hash do token no D1 e envia o link pela API da Brevo. Qualquer pessoa que criar uma conta de aluno com um e-mail válido poderá pedir a recuperação; não há lista manual de destinatários.
 
-1. Na Cloudflare, acesse **Compute > Email Service > Email Routing**, selecione **Onboard Domain** e escolha um domínio que esteja no DNS da sua conta. Se esse domínio já recebe e-mails por outro serviço, use um subdomínio de teste para não substituir os registros MX existentes. O remetente `EMAIL_FROM`, por exemplo `noreply@teste.seu-dominio.com`, deve usar o domínio ou subdomínio ativado.
-2. Em **Email Routing > Destination Addresses**, adicione o endereço de cada pessoa que poderá testar a recuperação. A pessoa precisa abrir o e-mail de verificação enviado pela Cloudflare e clicar em **Verify email address**. Não é preciso criar uma regra de roteamento para enviar a esses endereços verificados.
-3. Cada endereço de teste também precisa ter uma conta de aluno cadastrada no D1. Configure no Worker `PUBLIC_SITE_URL` com a URL HTTPS pública do frontend, `EMAIL_FROM` com o remetente acima e `RECOVERY_TEST_EMAILS` com os endereços verificados separados por vírgula. Exemplo: `pessoa1@exemplo.com,pessoa2@exemplo.com`. Endereços fora da lista recebem a resposta genérica e nenhum link é enviado.
-4. Confira o `database_id` do D1 em `wrangler.jsonc`, aplique a migração remota com `npm run db:migrate:remote` e publique o Worker com `npm run deploy`. Publique também o frontend com o formulário de recuperação. O binding `EMAIL` já está declarado em `wrangler.jsonc`.
+1. Crie uma conta gratuita na Brevo.
+2. Em **Settings > Senders, Domains & Dedicated IPs > Senders**, adicione um remetente. Para demonstração sem domínio próprio, use um e-mail seu, como Gmail, e confirme o código de seis dígitos recebido nesse endereço.
+3. Em **SMTP & API > API Keys**, crie uma API key.
+4. No Worker publicado, salve a chave como secret com `npx wrangler secret put BREVO_API_KEY`.
+5. Configure `EMAIL_FROM` com o mesmo endereço verificado na Brevo.
+6. Configure `PUBLIC_SITE_URL` com a URL HTTPS pública do frontend, incluindo `/` no fim. O link enviado abrirá essa página em `#nova-senha?token=...`.
+7. Confira o `database_id` do D1 em `wrangler.jsonc`, aplique a migração remota com `npm run db:migrate:remote` e publique o Worker com `npm run deploy`.
 
-Em desenvolvimento local, coloque as três variáveis no arquivo `.dev.vars`. O envio local é simulado no console e não manda uma mensagem real. No plano gratuito, a Cloudflare envia apenas para destinatários verificados na conta; para enviar a qualquer aluno no futuro será necessário Workers Paid com Email Sending ativo. Consulte a [lista de destinos verificados](https://developers.cloudflare.com/email-service/configuration/email-routing-addresses/), os [limites do plano gratuito](https://developers.cloudflare.com/email-service/platform/pricing/) e a [simulação local](https://developers.cloudflare.com/email-service/local-development/sending/).
+No desenvolvimento local, copie os campos de `.dev.vars.example` para `.dev.vars`. A Brevo enviará uma mensagem real. `PUBLIC_SITE_URL=http://localhost:5173/` funciona quando o link é aberto no mesmo computador; para compradores testarem de outros dispositivos, use a URL pública do frontend.
+
+Sem domínio próprio, a Brevo pode substituir o endereço remetente por um endereço técnico para atender às regras dos provedores de e-mail. Isso serve para demonstrações, mas pode ter menor reconhecimento e entrega em spam. O plano gratuito permite até 300 envios por dia. Veja como [criar e verificar um remetente](https://help.brevo.com/hc/en-us/articles/208836149-Create-a-new-sender-From-name-and-From-email) e os [limites do plano gratuito](https://help.brevo.com/hc/pt/articles/208580669-FAQ-Quais-s%C3%A3o-os-limites-do-plano-Gr%C3%A1tis).
 
 Os tokens expiram em 30 minutos, são armazenados somente como hash e consumidos em um batch transacional D1. A troca de senha invalida sessões anteriores do aluno. Configure limitação de requisições na Cloudflare antes de disponibilizar os endpoints publicamente.
 

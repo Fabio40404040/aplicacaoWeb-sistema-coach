@@ -1,0 +1,1 @@
+This folder contains the built output assets for the worker "frs-coach-api" generated at 2026-09-14T18:52:05.487Z.
