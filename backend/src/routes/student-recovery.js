@@ -69,7 +69,8 @@ export async function studentRecovery(request, env, db, action, deliver = sendPa
   link.hash = `nova-senha?token=${token}`
   try {
     await deliver(env, { to: account.email, link: link.href })
-  } catch {
+  } catch (error) {
+    console.error('Falha ao enviar recuperação de senha:', error)
     await db.query(
       'DELETE FROM student_password_resets WHERE account_id = $1 AND token_hash = $2',
       [account.id, tokenHash],

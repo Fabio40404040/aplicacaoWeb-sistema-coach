@@ -13,5 +13,8 @@ export async function sendPasswordReset(env, message, fetcher = fetch) {
       textContent: `Acesse ${message.link} para redefinir sua senha. O link vale por 30 minutos. Se você não solicitou, ignore esta mensagem.`,
     }),
   })
-  if (!response.ok) throw new Error(`Brevo rejected password reset email: ${response.status}`)
+  if (!response.ok) {
+    const details = (await response.text().catch(() => '')).slice(0, 500)
+    throw new Error(`Brevo recusou o e-mail (${response.status})${details ? `: ${details}` : '.'}`)
+  }
 }
