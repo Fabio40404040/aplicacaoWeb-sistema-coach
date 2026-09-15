@@ -51,7 +51,9 @@ export function initStudentAccess() {
       if (!form.reportValidity()) return
       const status = form.querySelector('[role="status"]')
       const button = form.querySelector('[type="submit"]')
+      const recoveryWait = form.querySelector('[data-student-recovery-wait]')
       button.disabled = true
+      if (recoveryWait) recoveryWait.hidden = true
       delete status.dataset.state
       status.textContent = 'Aguarde…'
       try {
@@ -63,6 +65,7 @@ export function initStudentAccess() {
         if (['forgot', 'reset'].includes(action)) {
           form.reset()
           status.textContent = result.message
+          if (action === 'forgot' && recoveryWait) recoveryWait.hidden = false
           if (action === 'reset') {
             sessionStorage.removeItem(TOKEN_KEY)
             history.replaceState(null, '', '#nova-senha')

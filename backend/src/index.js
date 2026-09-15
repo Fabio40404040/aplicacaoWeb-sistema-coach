@@ -2,6 +2,7 @@ import { withDb } from './lib/db.js'
 import { corsHeaders, json, readJson } from './lib/http.js'
 import { readSession } from './lib/session.js'
 import { login } from './routes/auth.js'
+import { coachSetup, coachSetupAvailability } from './routes/coach-setup.js'
 import { studentAuth } from './routes/student-auth.js'
 import { studentRecovery } from './routes/student-recovery.js'
 import { dashboard } from './routes/dashboard.js'
@@ -21,6 +22,12 @@ async function handle(request, env) {
   }
   if (request.method === 'POST' && segments.join('/') === 'auth/login') {
     return withDb(env, async (db) => login(request, env, db))
+  }
+  if (['GET', 'POST'].includes(request.method) && segments.join('/') === 'auth/setup') {
+    return withDb(env, async (db) => coachSetup(request, env, db))
+  }
+  if (request.method === 'GET' && segments.join('/') === 'auth/setup/status') {
+    return withDb(env, async (db) => coachSetupAvailability(db))
   }
   if (
     request.method === 'POST' &&

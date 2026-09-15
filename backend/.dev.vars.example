@@ -1,4 +1,5 @@
 SESSION_SECRET=troque-por-uma-chave-longa-e-aleatoria
+ADMIN_SETUP_TOKEN=troque-por-outro-token-longo-e-aleatorio
 PUBLIC_SITE_URL=http://localhost:5173/
 EMAIL_FROM=seu-email-verificado@gmail.com
 BREVO_API_KEY=xkeysib-sua-chave-de-envio

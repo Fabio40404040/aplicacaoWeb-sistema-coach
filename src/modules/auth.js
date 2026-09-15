@@ -1,8 +1,19 @@
-import { clearApiSession, login, syncRemoteData } from './api-client.js'
+import {
+  activateCoach,
+  clearApiSession,
+  coachActivationStatus,
+  coachSetupStatus,
+  login,
+  syncRemoteData,
+} from './api-client.js'
 
 const SESSION_KEY = 'frs-coach-session-v2'
+const ACTIVATION_ENABLED = import.meta.env.VITE_COACH_ACTIVATION === 'true'
 
 function showApp() {
+  document.querySelectorAll('[data-student-screen]').forEach((screen) => {
+    screen.hidden = true
+  })
   document.querySelector('[data-public-screen]').hidden = true
   document.querySelector('[data-login-screen]').hidden = true
   document.querySelector('[data-app-shell]').hidden = false
@@ -30,6 +41,14 @@ function handleLocation() {
     screen.hidden = true
   })
   const studentRoute = route.split('?')[0]
+  if (studentRoute === 'ativar-painel') {
+    document.querySelector('[data-public-screen]').hidden = true
+    document.querySelector('[data-login-screen]').hidden = true
+    document.querySelector('[data-app-shell]').hidden = true
+    document.querySelector('[data-student-screen="ativar-painel"]').hidden = false
+    document.title = 'Ativação do Painel · FRS Coach'
+    return
+  }
   if (
     ['entrar-aluno', 'cadastro-aluno', 'painel-aluno', 'recuperar-senha', 'nova-senha'].includes(
       studentRoute,
@@ -56,26 +75,79 @@ function handleLocation() {
 
 export function initAuth() {
   const form = document.querySelector('[data-login-form]')
-  const demoButton = document.querySelector('[data-demo-login]')
+  const activationButton = document.querySelector('[data-coach-activation]')
   let pendingLogin = null
   const status = form.querySelector('[data-coach-login-status]')
   const button = form.querySelector('[type="submit"]')
+  const setupForm = document.querySelector('[data-coach-setup-form]')
+  const setupStatus = setupForm.querySelector('[role="status"]')
+  const setupButton = setupForm.querySelector('[type="submit"]')
+  const setupCodeInput = setupForm.elements.activationCode
 
-  function enterLocalDemo() {
-    if (!import.meta.env.DEV) return
-    if (pendingLogin) {
-      pendingLogin.abort()
-      pendingLogin = null
+  const linkSetupToken = () =>
+    new URLSearchParams(location.hash.split('?')[1] || '').get('token') || ''
+  const setupToken = () => linkSetupToken() || setupCodeInput.value.trim()
+
+  async function refreshActivationButton() {
+    activationButton.hidden = false
+    if (!ACTIVATION_ENABLED) return
+    try {
+      const result = await coachActivationStatus()
+      activationButton.hidden = !result.available
+    } catch {
+      activationButton.hidden = false
     }
-    clearApiSession()
-    sessionStorage.setItem(SESSION_KEY, 'local-demo')
-    status.textContent = ''
-    button.disabled = false
-    showApp()
   }
 
+  async function refreshSetup() {
+    if (!location.hash.startsWith('#ativar-painel')) return
+    const setupInputs = setupForm.querySelectorAll('input')
+    if (!ACTIVATION_ENABLED) {
+      setupInputs.forEach((input) => {
+        input.disabled = true
+      })
+      setupButton.disabled = true
+      delete setupStatus.dataset.state
+      setupStatus.textContent =
+        'A ativação do Painel do Coach será liberada quando esta página for configurada e repassada ao novo proprietário.'
+      return
+    }
+    setupInputs.forEach((input) => {
+      input.disabled = false
+    })
+    const tokenCameFromLink = Boolean(linkSetupToken())
+    setupCodeInput.closest('[data-activation-code-field]').hidden = tokenCameFromLink
+    setupCodeInput.required = !tokenCameFromLink
+    setupButton.disabled = true
+    delete setupStatus.dataset.state
+    if (!setupToken()) {
+      setupStatus.textContent = 'Informe o código privado recebido com a entrega do sistema.'
+      setupButton.disabled = false
+      return
+    }
+    setupStatus.textContent = 'Verificando o link de ativação…'
+    try {
+      const result = await coachSetupStatus(setupToken())
+      if (result.available) {
+        setupStatus.textContent = 'Link válido. Crie a única conta administrativa deste painel.'
+        setupButton.disabled = false
+      } else {
+        setupStatus.textContent = result.message
+      }
+    } catch (error) {
+      setupStatus.dataset.state = 'error'
+      setupStatus.textContent = error.message
+    }
+  }
+
+  if (!import.meta.env.DEV && sessionStorage.getItem(SESSION_KEY) === 'local-demo')
+    sessionStorage.removeItem(SESSION_KEY)
   handleLocation()
-  demoButton.hidden = !import.meta.env.DEV
+  void refreshSetup()
+  void refreshActivationButton()
+  activationButton.title = ACTIVATION_ENABLED
+    ? 'Cadastrar o proprietário deste painel'
+    : 'Saiba como funciona a ativação após a compra'
   window.addEventListener('hashchange', () => {
     if (location.hash !== '#login' && pendingLogin) {
       pendingLogin.abort()
@@ -85,12 +157,43 @@ export function initAuth() {
       status.textContent = ''
     }
     handleLocation()
+    void refreshSetup()
+    void refreshActivationButton()
+  })
+
+  setupForm.addEventListener('submit', async (event) => {
+    event.preventDefault()
+    if (!setupForm.reportValidity() || setupButton.disabled) return
+    setupButton.disabled = true
+    delete setupStatus.dataset.state
+    setupStatus.textContent = 'Criando sua conta administrativa…'
+    try {
+      await activateCoach(Object.fromEntries(new FormData(setupForm)), setupToken())
+      sessionStorage.setItem(SESSION_KEY, 'active')
+      activationButton.hidden = true
+      setupForm.reset()
+      history.replaceState(null, '', '#painel')
+      await syncRemoteData()
+      showApp()
+    } catch (error) {
+      setupStatus.dataset.state = 'error'
+      setupStatus.textContent = error.message
+      setupButton.disabled = false
+    }
   })
 
   form.addEventListener('submit', async (event) => {
     event.preventDefault()
     if (!form.reportValidity()) return
     if (pendingLogin) return
+    if (import.meta.env.DEV) {
+      clearApiSession()
+      sessionStorage.setItem(SESSION_KEY, 'local-demo')
+      form.reset()
+      status.textContent = ''
+      showApp()
+      return
+    }
     const controller = new AbortController()
     pendingLogin = controller
     const credentials = Object.fromEntries(new FormData(form))
@@ -106,10 +209,6 @@ export function initAuth() {
       showApp()
     } catch (error) {
       if (controller.signal.aborted) return
-      if (import.meta.env.DEV && error.message === 'E-mail ou senha incorretos.') {
-        enterLocalDemo()
-        return
-      }
       sessionStorage.removeItem(SESSION_KEY)
       clearApiSession()
       status.textContent = error.message
@@ -119,7 +218,9 @@ export function initAuth() {
     }
   })
 
-  demoButton.addEventListener('click', enterLocalDemo)
+  activationButton.addEventListener('click', () => {
+    location.hash = '#ativar-painel'
+  })
 
   document.querySelector('[data-logout]').addEventListener('click', () => {
     sessionStorage.removeItem(SESSION_KEY)

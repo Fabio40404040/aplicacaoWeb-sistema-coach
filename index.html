@@ -821,6 +821,13 @@
           role="status"
           aria-live="polite"
         ></p>
+        <p
+          class="password-requirements"
+          data-student-recovery-wait
+          hidden
+        >
+          Espere 2 minutos para pedir a recuperação de senha novamente.
+        </p>
         <button
           class="button button--primary"
           type="submit"
@@ -948,6 +955,84 @@
       </div>
     </section>
     <section
+      class="student-access"
+      data-student-screen="ativar-painel"
+      hidden
+    >
+      <a
+        class="brand"
+        href="#inicio"
+        ><span class="brand-mark">FRS</span><span>Voltar ao site</span></a
+      >
+      <form
+        class="student-access-card"
+        data-coach-setup-form
+      >
+        <span class="eyebrow">Ativação do proprietário</span>
+        <h1>Crie seu acesso ao Painel do Coach</h1>
+        <p>Este cadastro pode ser concluído uma única vez.</p>
+        <label
+          class="field"
+          data-activation-code-field
+          ><span>Código privado de ativação</span
+          ><input
+            name="activationCode"
+            type="password"
+            autocomplete="off"
+            required
+            minlength="32"
+        /></label>
+        <label class="field"
+          ><span>Nome completo</span
+          ><input
+            name="name"
+            autocomplete="name"
+            required
+            minlength="3"
+            maxlength="120"
+        /></label>
+        <label class="field"
+          ><span>E-mail</span
+          ><input
+            name="email"
+            type="email"
+            autocomplete="email"
+            required
+            maxlength="180"
+        /></label>
+        <label class="field"
+          ><span>Senha</span
+          ><input
+            name="password"
+            type="password"
+            autocomplete="new-password"
+            aria-describedby="coach-setup-password-requirements"
+            required
+            minlength="8"
+            maxlength="128"
+            pattern="(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])(?=.*[^A-Za-z0-9\s])\S{8,128}"
+            title="Use no mínimo 8 caracteres, com letra maiúscula, letra minúscula, número e caractere especial."
+        /></label>
+        <p
+          class="password-requirements"
+          id="coach-setup-password-requirements"
+        >
+          Use no mínimo 8 caracteres, incluindo maiúscula, minúscula, número e caractere especial.
+        </p>
+        <p
+          role="status"
+          aria-live="polite"
+        ></p>
+        <button
+          class="button button--primary"
+          type="submit"
+          disabled
+        >
+          Ativar meu painel
+        </button>
+      </form>
+    </section>
+    <section
       class="login-screen"
       data-login-screen
       hidden
@@ -1035,10 +1120,9 @@
           <button
             class="button button--secondary button--large"
             type="button"
-            data-demo-login
-            hidden
+            data-coach-activation
           >
-            Entrar no painel de demonstração
+            Ativar Painel do Coach
           </button>
           <p
             class="login-note"

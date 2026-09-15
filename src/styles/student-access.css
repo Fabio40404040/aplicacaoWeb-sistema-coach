@@ -89,6 +89,10 @@
 .student-access-card .field > span {
   color: #eef4ff;
 }
+.student-access-card input:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
 .student-access-card [role='status']:empty {
   display: none;
 }

@@ -345,6 +345,14 @@
 .button:hover {
   transform: translateY(-1px);
 }
+.button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+  box-shadow: none;
+}
+.button:disabled:hover {
+  transform: none;
+}
 .button--primary {
   color: var(--white);
   background: linear-gradient(135deg, var(--blue-700), var(--blue-600));

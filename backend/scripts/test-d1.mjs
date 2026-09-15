@@ -5,6 +5,7 @@ import { withDb } from '../src/lib/db.js'
 import { createResource, updateResource, deleteResource } from '../src/routes/resources.js'
 import { dashboard } from '../src/routes/dashboard.js'
 import { sendPasswordReset } from '../src/lib/password-mailer.js'
+import { coachSetup, coachSetupAvailability } from '../src/routes/coach-setup.js'
 import { studentAuth } from '../src/routes/student-auth.js'
 import { studentRecovery } from '../src/routes/student-recovery.js'
 
@@ -39,12 +40,55 @@ const binding = {
   },
 }
 await withDb({ DB: binding }, async (db) => {
-  const trainer = (
-    await db.query(
-      'INSERT INTO trainers (name,email,password_hash) VALUES ($1,$2,$3) RETURNING id',
-      ['Coach', 'coach@example.invalid', 'hash'],
-    )
-  ).rows[0]
+  const setupEnv = {
+    ADMIN_SETUP_TOKEN: 'setup-token-with-at-least-thirty-two-characters',
+    SESSION_SECRET: 'session-secret-with-at-least-thirty-two-characters',
+  }
+  const setupRequest = (method, token, body) =>
+    new Request('https://example.invalid/api/auth/setup', {
+      method,
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Setup-Token': token,
+      },
+      ...(body ? { body: JSON.stringify(body) } : {}),
+    })
+  assert.equal((await coachSetup(setupRequest('GET', 'invalid'), setupEnv, db)).status, 404)
+  assert.equal((await coachSetupAvailability(db)).data.available, true)
+  assert.equal(
+    (await coachSetup(setupRequest('GET', setupEnv.ADMIN_SETUP_TOKEN), setupEnv, db)).data
+      .available,
+    true,
+  )
+  const setup = await coachSetup(
+    setupRequest('POST', setupEnv.ADMIN_SETUP_TOKEN, {
+      name: 'Coach',
+      email: 'coach@example.invalid',
+      password: 'Senha@123',
+    }),
+    setupEnv,
+    db,
+  )
+  assert.equal(setup.status, 201)
+  assert.ok(setup.data.token)
+  const trainer = setup.data.user
+  assert.equal((await coachSetupAvailability(db)).data.available, false)
+  assert.equal(
+    (await coachSetup(setupRequest('GET', setupEnv.ADMIN_SETUP_TOKEN), setupEnv, db)).data
+      .available,
+    false,
+  )
+  const repeatedSetup = await coachSetup(
+    setupRequest('POST', setupEnv.ADMIN_SETUP_TOKEN, {
+      name: 'Outra pessoa',
+      email: 'another@example.invalid',
+      password: 'Outra@Senha123',
+    }),
+    setupEnv,
+    db,
+  )
+  assert.equal(repeatedSetup.data.available, false)
+  assert.equal((await db.query('SELECT COUNT(*) AS total FROM trainers')).rows[0].total, 1)
   const other = (
     await db.query(
       'INSERT INTO trainers (name,email,password_hash) VALUES ($1,$2,$3) RETURNING id',

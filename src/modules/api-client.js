@@ -41,11 +41,34 @@ export async function login(credentials, signal) {
   return result
 }
 
+export async function coachSetupStatus(setupToken, signal) {
+  return request('/auth/setup', {
+    signal,
+    headers: { 'X-Setup-Token': setupToken },
+  })
+}
+
+export async function coachActivationStatus() {
+  return request('/auth/setup/status')
+}
+
+export async function activateCoach(account, setupToken) {
+  const result = await request('/auth/setup', {
+    method: 'POST',
+    headers: { 'X-Setup-Token': setupToken },
+    body: JSON.stringify(account),
+  })
+  if (!result?.token) throw new Error('O servidor não retornou uma sessão válida.')
+  sessionStorage.setItem(TOKEN_KEY, result.token)
+  return result
+}
+
 export function clearApiSession() {
   sessionStorage.removeItem(TOKEN_KEY)
 }
 
 export async function persistRecord(collection, record, editingId = null) {
+  if (!sessionStorage.getItem(TOKEN_KEY)) return record
   return request(`/${collection}${editingId ? `/${editingId}` : ''}`, {
     method: editingId ? 'PUT' : 'POST',
     body: JSON.stringify(record),
@@ -53,6 +76,7 @@ export async function persistRecord(collection, record, editingId = null) {
 }
 
 export async function removeRecord(collection, id) {
+  if (!sessionStorage.getItem(TOKEN_KEY)) return null
   return request(`/${collection}/${id}`, { method: 'DELETE' })
 }
 
