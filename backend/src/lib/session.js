@@ -27,6 +27,8 @@ function decodeBase64url(value) {
 }
 
 async function signature(payload, secret) {
+  if (typeof secret !== 'string' || secret.length < 32)
+    throw new Error('SESSION_SECRET ausente ou muito curta; configure pelo menos 32 caracteres.')
   const key = await crypto.subtle.importKey(
     'raw',
     encoder.encode(secret),

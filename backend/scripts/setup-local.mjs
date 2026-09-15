@@ -1,14 +1,20 @@
 import { randomBytes } from 'node:crypto'
-import { writeFileSync } from 'node:fs'
+import { readFileSync, writeFileSync } from 'node:fs'
 
-// Local-only configuration; never replaces existing secrets.
+const file = new URL('../.dev.vars', import.meta.url)
+let content = ''
 try {
-  writeFileSync(
-    new URL('../.dev.vars', import.meta.url),
-    `SESSION_SECRET=${randomBytes(32).toString('hex')}\n`,
-    { flag: 'wx', mode: 0o600 },
-  )
-  console.log('Chave de sessão local criada em .dev.vars (não publicar).')
+  content = readFileSync(file, 'utf8')
 } catch (error) {
-  if (error.code !== 'EEXIST') throw error
+  if (error.code !== 'ENOENT') throw error
+}
+
+// Completa a configuração local sem substituir as demais variáveis.
+if (!/^SESSION_SECRET=.+$/mu.test(content)) {
+  const secret = `SESSION_SECRET=${randomBytes(32).toString('hex')}`
+  content = /^SESSION_SECRET=.*$/mu.test(content)
+    ? content.replace(/^SESSION_SECRET=.*$/mu, secret)
+    : `${content.trimEnd()}${content.trim() ? '\n' : ''}${secret}\n`
+  writeFileSync(file, content, { mode: 0o600 })
+  console.log('Chave de sessão local criada em .dev.vars (não publicar).')
 }
